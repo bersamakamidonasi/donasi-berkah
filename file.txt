@@ -1,0 +1,35 @@
+# Configuration file for Donasi Berkah Bot
+# This file contains example configurations and placeholders
+# DO NOT commit real API keys or tokens to repository
+
+# Pakasir Payment Gateway Configuration
+pakasir
+slug: bersama-kami
+apikey: your_pakasir_api_key_here
+
+# Supabase Database Configuration
+supabase
+supabase url: https://qpdzoakrbzsmqqysrkaa.supabase.co
+supabase anon key: your_supabase_anon_key_here
+
+# GitHub Repository Information
+github
+github username: bersamakamidonasi
+personal classic token: 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
+repository link: https://github.com/bersamakamidonasi/donasi-berkah
+
+# Bot Configuration
+bot_name: Donasi Berkah - Bantu Sesama
+description: Bot donasi untuk membantu sesama melalui QRIS payments
+owner_telegram_id: 7325378401
+
+# Environment Variables Template (.env file)
+# Copy this to .env and fill with actual values:
+BOT_TOKEN=your_telegram_bot_token_here
+ADMIN_ID=7325378401
+OWNER_ID=7325378401
+PAKASIR_PROJECT=bersama-kami
+PAKASIR_API_KEY=your_pakasir_api_key_here
+SUPABASE_URL=https://qpdzoakrbzsmqqysrkaa.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key_here
+BASE_URL=https://your-railway-app-url
