@@ -1,4 +1,4 @@
-const { createMainMenuKeyboard } = require('../keyboards/replyKeyboard');
+const { createMainDonationReplyKeyboard } = require('../keyboards/replyKeyboard');
 const logger = require('../../utils/logger');
 
 /**
@@ -43,7 +43,7 @@ async function handleStart(bot, msg, userSessions) {
       lastActivity: Date.now()
     };
 
-    const text = getMainMenuText(userSessions[userId]);
+    const text = '🎉 **Donasi — Bantu Sesama**\n\nMari bantu sesama dengan donasi Anda!\n\n💰 **Pilih nominal donasi di bawah**\n\nGunakan tombol keyboard untuk memilih:';
     const keyboard = createMainDonationReplyKeyboard(userSessions[userId]);
 
     await bot.sendMessage(chatId, text, {
@@ -59,4 +59,4 @@ async function handleStart(bot, msg, userSessions) {
   }
 }
 
-module.exports = { handleStart, getMainMenuText };
+module.exports = { handleStart };

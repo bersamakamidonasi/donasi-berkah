@@ -45,7 +45,9 @@ async function checkQrisStatus(orderId, amount) {
       }
     });
 
-    return response.data;
+    // The API returns data in format { transaction: {...} }
+    // Return the transaction object directly for consistency
+    return response.data.transaction || response.data;
   } catch (error) {
     console.error('Pakasir Status Check Error:', error.response?.data || error.message);
     throw new Error('Failed to check payment status');

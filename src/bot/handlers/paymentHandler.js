@@ -1,4 +1,4 @@
-const { createQrisStatusKeyboard } = require('../keyboards/donationKeyboard');
+const { createQrisStatusInlineKeyboard } = require('../keyboards/replyKeyboard');
 const { generateOrderId } = require('../../utils/random');
 const { createQrisTransaction } = require('../../services/pakasirService');
 const { saveOrder } = require('../../services/orderService');
@@ -10,21 +10,24 @@ const logger = require('../../utils/logger');
  */
 
 /**
- * Handle payment initiation callback
+ * Handle payment initiation
  * @param {Object} bot - Telegram bot instance
- * @param {Object} query - Callback query object
+ * @param {Object} msg - Telegram message object
  * @param {Object} userSessions - User sessions storage
  */
-async function handlePaymentInitiation(bot, query, userSessions) {
-  const chatId = query.message.chat.id;
-  const userId = query.from.id;
+async function handlePaymentInitiation(bot, msg, userSessions) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
 
   try {
     // Check if amount is selected
     if (!userSessions[userId]?.selectedAmount) {
-      await bot.answerCallbackQuery(query.id, {
-        text: '❌ Pilih nominal donasi terlebih dahulu!',
-        show_alert: true
+      const text = '🎉 **Donasi — Bantu Sesama**\n\nMari bantu sesama dengan donasi Anda!\n\n❌ **Pilih nominal donasi terlebih dahulu!**\n\nGunakan tombol di bawah untuk memilih nominal.';
+      const keyboard = require('../keyboards/replyKeyboard').createMainDonationReplyKeyboard(userSessions[userId]);
+
+      await bot.sendMessage(chatId, text, {
+        reply_markup: keyboard,
+        parse_mode: 'Markdown'
       });
       return;
     }
@@ -39,7 +42,7 @@ async function handlePaymentInitiation(bot, query, userSessions) {
     await saveOrder({
       order_id: orderId,
       user_id: userId,
-      username: query.from.username || query.from.first_name,
+      username: msg.from.username || msg.from.first_name,
       amount: amount,
       qr_string: qrisData.payment_number,
       expired_at: qrisData.expired_at,
@@ -55,7 +58,7 @@ async function handlePaymentInitiation(bot, query, userSessions) {
     await bot.sendPhoto(chatId, qrBuffer, {
       caption: caption,
       parse_mode: 'Markdown',
-      reply_markup: createQrisStatusKeyboard(orderId)
+      reply_markup: createQrisStatusInlineKeyboard(orderId)
     });
 
     // Clear session
@@ -66,7 +69,10 @@ async function handlePaymentInitiation(bot, query, userSessions) {
 
   } catch (error) {
     logger.error('Error in payment initiation handler:', error);
-    await bot.sendMessage(chatId, '❌ Maaf, terjadi kesalahan dalam membuat transaksi. Silakan coba lagi.');
+    const keyboard = require('../keyboards/replyKeyboard').createMainDonationReplyKeyboard(userSessions[userId]);
+    await bot.sendMessage(chatId, '❌ Maaf, terjadi kesalahan dalam membuat transaksi. Silakan coba lagi.', {
+      reply_markup: keyboard
+    });
   }
 }
 

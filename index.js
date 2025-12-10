@@ -25,7 +25,7 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('UNHANDLED REJECTION:', reason);
+  console.error('UNHANDLED REJECTION at:', promise, 'reason:', reason);
   // Don't exit, just log
 });
 
@@ -38,7 +38,6 @@ try {
 }
 
 const token = config.BOT_TOKEN;
-const adminId = config.ADMIN_ID;
 
 // Create bot instance with polling
 const bot = new TelegramBot(token, { polling: true });
@@ -69,7 +68,7 @@ bot.onText(/\/start/, (msg) => {
   handleStart(bot, msg, sessions);
 });
 
-// Handle callback queries (for amount selection, payment, etc.)
+// Handle callback queries (for status checking)
 bot.on('callback_query', async (query) => {
   const data = query.data;
 
@@ -80,12 +79,13 @@ bot.on('callback_query', async (query) => {
       const statusData = await checkQrisStatus(orderId, orders[orderId]?.amount);
       if (statusData.status === 'completed') {
         orders[orderId].status = 'verified';
-        bot.sendMessage(orders[orderId].userId, '✅ Pembayaran berhasil diverifikasi!');
-        bot.sendMessage('7325378401', `📢 Donasi Masuk!\n👤 ${orders[orderId].username}\n💰 Rp${orders[orderId].amount.toLocaleString()}\n✅ BERHASIL`);
+        await bot.sendMessage(orders[orderId].userId, '✅ Pembayaran berhasil diverifikasi!');
+        await bot.sendMessage(config.OWNER_ID, `📢 Donasi Masuk!\n👤 ${orders[orderId].username}\n💰 Rp${orders[orderId].amount.toLocaleString()}\n✅ BERHASIL`);
       }
-      bot.answerCallbackQuery(query.id, { text: `Status: ${statusData.status.toUpperCase()}` });
+      await bot.answerCallbackQuery(query.id, { text: `Status: ${statusData.status?.toUpperCase() || 'unknown'}` });
     } catch (error) {
-      bot.answerCallbackQuery(query.id, { text: 'Gagal cek status' });
+      console.error('Error checking payment status:', error);
+      await bot.answerCallbackQuery(query.id, { text: 'Gagal cek status' });
     }
   }
 });
@@ -125,7 +125,7 @@ bot.on('message', async (msg) => {
       const menuText = '🎉 **Donasi — Bantu Sesama**\n\nMari bantu sesama dengan donasi Anda!\n\n❌ **Pilih nominal donasi terlebih dahulu!**\n\nGunakan tombol di bawah untuk memilih nominal.';
       const keyboard = createMainDonationReplyKeyboard(sessions[userId]);
 
-      bot.sendMessage(chatId, menuText, {
+      await bot.sendMessage(chatId, menuText, {
         reply_markup: keyboard,
         parse_mode: 'Markdown'
       });
@@ -163,7 +163,7 @@ bot.on('message', async (msg) => {
     } catch (error) {
       console.error('QRIS creation error:', error);
       const keyboard = createMainDonationReplyKeyboard(sessions[userId]);
-      bot.sendMessage(chatId, '❌ Maaf, terjadi kesalahan dalam membuat transaksi. Silakan coba lagi.', {
+      await bot.sendMessage(chatId, '❌ Maaf, terjadi kesalahan dalam membuat transaksi. Silakan coba lagi.', {
         reply_markup: keyboard
       });
     }
@@ -174,3 +174,6 @@ bot.on('message', async (msg) => {
 setInterval(cleanExpiredSessions, 5 * 60 * 1000); // Every 5 minutes
 
 console.log('Bot is running...');
+
+// Export bot instance for potential webhook usage
+module.exports = { bot, orders, sessions };
