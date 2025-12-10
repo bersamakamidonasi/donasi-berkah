@@ -20,12 +20,9 @@ const adminId = process.env.ADMIN_ID;
 // Create bot instance with polling
 const bot = new TelegramBot(token, { polling: true });
 
-// Delete any existing webhook
-bot.deleteWebhook().then(() => {
-  console.log('✅ Webhook deleted - polling mode active');
-}).catch((error) => {
-  console.log('ℹ️ Webhook delete status:', error.message);
-});
+// Log successful bot initialization
+console.log('🤖 Bot initialized successfully');
+console.log('📡 Polling mode active');
 
 // Pakasir API functions
 async function createQrisTransaction(orderId, amount) {
