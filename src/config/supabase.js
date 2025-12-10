@@ -5,7 +5,7 @@ const { config } = require('./env');
  * Supabase client configuration
  * Uses anon key for client-side operations
  */
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
+const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
 /**
  * Supabase admin client for server-side operations
