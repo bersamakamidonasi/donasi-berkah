@@ -30,6 +30,9 @@ function formatLogMessage(level, message, data = null) {
   const baseMessage = `[${timestamp}] [${level}] ${message}`;
 
   if (data) {
+    if (data instanceof Error) {
+      return `${baseMessage}\n${data.stack}`;
+    }
     return `${baseMessage} ${JSON.stringify(data, null, 2)}`;
   }
 
