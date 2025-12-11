@@ -43,7 +43,6 @@ const bot = new TelegramBot(token);
 
 // Log successful bot initialization
 console.log('🤖 Bot initialized successfully');
-console.log('📡 Polling mode active');
 
 // In-memory storage for orders and sessions
 let orders = {};
