@@ -317,4 +317,4 @@ console.log('✅ Bot is running...');
 console.log('🎯 Ready to receive donations!');
 
 // Export bot instance for potential webhook usage
-module.exports = { bot, orders, sessions };
+module.exports = { bot, sessions };
