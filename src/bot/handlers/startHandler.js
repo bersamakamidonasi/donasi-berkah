@@ -59,4 +59,4 @@ async function handleStart(bot, msg, userSessions) {
   }
 }
 
-module.exports = { handleStart };
+module.exports = { handleStart, getMainMenuText };
