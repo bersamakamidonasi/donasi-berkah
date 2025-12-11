@@ -67,8 +67,31 @@ function validateWebhookSignature(payload, signature) {
   return true;
 }
 
+/**
+ * Simulate a successful payment for a given order (for sandbox/testing)
+ * @param {string} orderId - The order ID to simulate payment for
+ * @param {number} amount - The transaction amount
+ * @returns {Promise<Object>} Simulation response data
+ */
+async function simulatePayment(orderId, amount) {
+  try {
+    const response = await axios.post('https://app.pakasir.com/api/paymentsimulation', {
+      project: config.PAKASIR_PROJECT,
+      order_id: orderId,
+      amount: amount,
+      api_key: config.PAKASIR_API_KEY
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Pakasir Simulation Error:', error.response?.data || error.message);
+    throw new Error('Failed to simulate payment');
+  }
+}
+
 module.exports = {
   createQrisTransaction,
   checkQrisStatus,
-  validateWebhookSignature
+  validateWebhookSignature,
+  simulatePayment
 };

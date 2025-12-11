@@ -11,7 +11,7 @@ const { handleCustomAmountRequest, handleCustomAmountInput } = require('./src/bo
 const { handlePaymentInitiation } = require('./src/bot/handlers/paymentHandler');
 const { createMainDonationReplyKeyboard } = require('./src/bot/keyboards/replyKeyboard');
 const { createQrisStatusInlineKeyboard } = require('./src/bot/keyboards/replyKeyboard');
-const { createQrisTransaction, checkQrisStatus } = require('./src/services/pakasirService');
+const { createQrisTransaction, checkQrisStatus, simulatePayment } = require('./src/services/pakasirService');
 const { saveOrder, updateOrder, getTotalDonations, getOrderById } = require('./src/services/orderService');
 const { validateDonationAmount } = require('./src/utils/validateAmount');
 const { generateOrderId } = require('./src/utils/random');
@@ -344,6 +344,43 @@ Silakan pilih nominal terlebih dahulu menggunakan tombol di bawah 👇
         }
       );
     }
+  }
+});
+
+// Handle /simulate_payment command (owner only)
+bot.onText(/\/simulate_payment (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const orderId = match[1];
+
+  // Ensure only the owner can run this command
+  if (String(userId) !== String(config.OWNER_ID)) {
+    return bot.sendMessage(chatId, '🚫 Perintah ini hanya untuk owner.');
+  }
+
+  if (!orderId) {
+    return bot.sendMessage(chatId, '⚠️ Mohon sertakan Order ID. Contoh: `/simulate_payment 123-ABC`');
+  }
+
+  try {
+    // Get order from DB to get the amount
+    const order = await getOrderById(orderId);
+    if (!order) {
+      return bot.sendMessage(chatId, `❌ Order dengan ID \`${orderId}\` tidak ditemukan.`, { parse_mode: 'Markdown' });
+    }
+
+    if (order.status !== 'pending') {
+      return bot.sendMessage(chatId, `⚠️ Order \`${orderId}\` sudah tidak pending (status: ${order.status}).`, { parse_mode: 'Markdown' });
+    }
+
+    // Trigger the simulation
+    await simulatePayment(order.order_id, order.amount);
+
+    await bot.sendMessage(chatId, `✅ Simulasi pembayaran untuk order \`${orderId}\` berhasil dijalankan. Webhook akan segera diproses.`, { parse_mode: 'Markdown' });
+
+  } catch (error) {
+    logger.error('Error in payment simulation command:', error);
+    await bot.sendMessage(chatId, `🔥 Gagal menjalankan simulasi untuk order \`${orderId}\`. Cek log untuk detail.`, { parse_mode: 'Markdown' });
   }
 });
 
