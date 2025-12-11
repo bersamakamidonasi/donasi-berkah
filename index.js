@@ -133,32 +133,26 @@ bot.onText(/\/start/, (msg) => {
   handleStart(bot, msg, sessions);
 });
 
-// Handle callback queries (for status checking)
-bot.on('callback_query', async (query) => {
-  const data = query.data;
+/**
+ * Handles the logic for a successfully completed payment.
+ * @param {string} orderId - The ID of the completed order.
+ */
+async function handleSuccessfulPayment(orderId) {
+  try {
+    const order = await getOrderById(orderId);
+    if (!order || order.status === 'completed') {
+      // If order not found or already processed, do nothing.
+      return;
+    }
 
-  if (data.startsWith('check:')) {
-    const orderId = data.split(':')[1];
-    
-    try {
-      // Get order from DB to check amount
-      const order = await getOrderById(orderId);
-      if (!order) {
-        await bot.answerCallbackQuery(query.id, { text: 'Order tidak ditemukan.' });
-        return;
-      }
+    // Update status in DB
+    await updateOrder(orderId, { 
+      status: 'completed',
+      completed_at: new Date().toISOString() 
+    });
 
-      const statusData = await checkQrisStatus(orderId, order.amount);
-      
-      if (statusData.status === 'completed') {
-        // Update status in DB
-        await updateOrder(orderId, { 
-          status: 'completed',
-          completed_at: new Date().toISOString() 
-        });
-
-        // New success message
-        const successMessage = `
+    // New success message
+    const successMessage = `
 ✅ *PEMBAYARAN BERHASIL!*
 
 Terima kasih banyak atas donasi Anda! 🎉
@@ -175,28 +169,58 @@ Semoga kebaikan Anda dibalas dengan berlipat ganda. Barakallah! 🙏
 🌟 Mau donasi lagi? Ketik /start
 `;
 
-        await bot.sendMessage(order.user_id, successMessage, {
-          parse_mode: 'Markdown'
-        });
+    await bot.sendMessage(order.user_id, successMessage, {
+      parse_mode: 'Markdown'
+    });
 
-        // Delete the original QR code message
-        if (order.qr_message_id) {
-          try {
-            await bot.deleteMessage(order.user_id, order.qr_message_id);
-          } catch (err) {
-            logger.error('Failed to delete QR message, it might have been deleted already:', err);
-          }
-        }
+    // Delete the original QR code message
+    if (order.qr_message_id) {
+      try {
+        await bot.deleteMessage(order.user_id, order.qr_message_id);
+      } catch (err) {
+        logger.error('Failed to delete QR message, it might have been deleted already:', err);
+      }
+    }
 
-        // Enhanced notification to owner
-        await bot.sendMessage(config.OWNER_ID,
-          `🎊 *DONASI BARU MASUK!*\n\n` +
-          `👤 *Donatur:* ${order.username}\n` +
-          `💰 *Nominal:* Rp${order.amount.toLocaleString()}\n` +
-          `📅 *Waktu:* ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}\n` +
-          `✅ *Status:* BERHASIL`,
-          { parse_mode: 'Markdown' }
-        );
+    // Enhanced notification to owner
+    await bot.sendMessage(config.OWNER_ID,
+      `🎊 *DONASI BARU MASUK!*\n\n` +
+      `👤 *Donatur:* ${order.username}\n` +
+      `💰 *Nominal:* Rp${order.amount.toLocaleString()}\n` +
+      `📅 *Waktu:* ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}\n` +
+      `✅ *Status:* BERHASIL`,
+      { parse_mode: 'Markdown' }
+    );
+  } catch (error) {
+    logger.error(`Error handling successful payment for order ${orderId}:`, error);
+  }
+}
+
+// Handle callback queries (for status checking)
+bot.on('callback_query', async (query) => {
+  const data = query.data;
+
+  if (data.startsWith('check:')) {
+    const orderId = data.split(':')[1];
+    
+    try {
+      // Get order from DB to check amount
+      const order = await getOrderById(orderId);
+      if (!order) {
+        await bot.answerCallbackQuery(query.id, { text: 'Order tidak ditemukan.' });
+        return;
+      }
+
+      // If already completed by webhook, just confirm
+      if (order.status === 'completed') {
+        await bot.answerCallbackQuery(query.id, { text: '✅ Pembayaran sudah berhasil.' });
+        return;
+      }
+
+      const statusData = await checkQrisStatus(orderId, order.amount);
+      
+      if (statusData.status === 'completed') {
+        await handleSuccessfulPayment(orderId);
       }
       await bot.answerCallbackQuery(query.id, { text: `Status: ${statusData.status?.toUpperCase() || 'unknown'}` });
     } catch (error) {
@@ -391,4 +415,4 @@ console.log('✅ Bot is running...');
 console.log('🎯 Ready to receive donations!');
 
 // Export bot instance for potential webhook usage
-module.exports = { bot, sessions };
+module.exports = { bot, sessions, handleSuccessfulPayment };
