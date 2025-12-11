@@ -261,6 +261,7 @@ Silakan pilih nominal terlebih dahulu menggunakan tombol di bawah 👇
       const qrBuffer = await QRCode.toBuffer(qrisResponse.payment_number, { type: 'png', width: 300 });
 
       // Enhanced payment message
+      const expirationDate = new Date(qrisResponse.expired_at);
       const paymentMessage = `
 ╔═══════════════════════╗
    💳 *LANJUTKAN PEMBAYARAN*
@@ -270,7 +271,7 @@ Silakan pilih nominal terlebih dahulu menggunakan tombol di bawah 👇
    Rp${qrisResponse.total_payment.toLocaleString()}
 
 ⏰ *Batas Waktu:*
-   ${new Date(qrisResponse.expired_at).toLocaleString('id-ID')}
+   ${expirationDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -285,11 +286,28 @@ Silakan pilih nominal terlebih dahulu menggunakan tombol di bawah 👇
 ✅ Klik tombol "Cek Status" setelah bayar untuk verifikasi otomatis!
 `;
 
-      await bot.sendPhoto(chatId, qrBuffer, {
+      const sentMessage = await bot.sendPhoto(chatId, qrBuffer, {
         caption: paymentMessage,
         parse_mode: 'Markdown',
         reply_markup: createQrisStatusInlineKeyboard(orderId)
       });
+
+      // Schedule QR code deletion on expiration
+      const delay = expirationDate.getTime() - Date.now();
+      if (delay > 0) {
+        setTimeout(async () => {
+          try {
+            // Check if order is still pending before deleting
+            const order = await getOrderById(orderId);
+            if (order && order.status === 'pending') {
+              await bot.deleteMessage(chatId, sentMessage.message_id);
+              await bot.sendMessage(chatId, '⌛️ Waktu pembayaran untuk QRIS ini telah habis. Silakan ketik /start untuk membuat donasi baru.');
+            }
+          } catch (err) {
+            logger.error('Error in scheduled QR deletion:', err);
+          }
+        }, delay);
+      }
 
       // Clear session
       sessions[userId].selectedAmount = null;
