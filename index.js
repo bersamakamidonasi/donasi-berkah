@@ -137,9 +137,19 @@ Pilih nominal di bawah atau masukkan jumlah custom sesuai kemampuanmu 👇
   }
 }
 
-// Handle /start
+// Handle /start command in private chats
 bot.onText(/\/start/, (msg) => {
-  handleStart(bot, msg, sessions);
+  if (msg.chat.type === 'private') {
+    handleStart(bot, msg, sessions);
+  }
+});
+
+// Handle /donasi command in group chats
+bot.onText(/\/donasi/, (msg) => {
+  const chatType = msg.chat.type;
+  if (chatType === 'group' || chatType === 'supergroup') {
+    handleStart(bot, msg, sessions);
+  }
 });
 
 /**
