@@ -256,6 +256,7 @@ Silakan pilih nominal terlebih dahulu menggunakan tombol di bawah 👇
 
     // Create QRIS transaction
     const orderId = generateOrderId();
+    logger.info(`Creating transaction with order_id: ${orderId}`);
     try {
       const qrisResponse = await createQrisTransaction(orderId, sessions[userId].selectedAmount);
 
