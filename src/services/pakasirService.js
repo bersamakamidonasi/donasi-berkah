@@ -21,8 +21,8 @@ async function createQrisTransaction(orderId, amount) {
       api_key: config.PAKASIR_API_KEY
     });
 
-    // Return the nested transaction object for consistency
-    return response.data.transaction || response.data;
+    // Return the nested payment object as per Pakasir documentation
+    return response.data.payment || response.data;
   } catch (error) {
     console.error('Pakasir API Error:', error.response?.data || error.message);
     throw new Error('Failed to create QRIS transaction');
