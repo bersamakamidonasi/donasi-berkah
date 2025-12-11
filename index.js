@@ -6,7 +6,6 @@ const QRCode = require('qrcode');
 
 // Import modular modules
 const { config } = require('./src/config/env');
-const { handleStart } = require('./src/bot/handlers/startHandler');
 const { handleAmountSelection } = require('./src/bot/handlers/amountHandler');
 const { handleCustomAmountRequest, handleCustomAmountInput } = require('./src/bot/handlers/customAmountHandler');
 const { handlePaymentInitiation } = require('./src/bot/handlers/paymentHandler');
@@ -63,6 +62,68 @@ function cleanExpiredSessions() {
   }
 }
 
+// Enhanced Start Handler - Built-in
+async function handleStart(bot, msg, sessions) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const firstName = msg.from.first_name || 'Sahabat';
+
+  // Initialize or reset session
+  sessions[userId] = {
+    selectedAmount: null,
+    awaitingCustomAmount: false,
+    lastActivity: Date.now()
+  };
+
+  // Enhanced welcome message with better formatting and emotional appeal
+  const welcomeMessage = `
+╔═══════════════════════╗
+   ✨ *SELAMAT DATANG* ✨
+╚═══════════════════════╝
+
+Hai *${firstName}*! 👋
+
+Terima kasih sudah membuka hatimu untuk *berbagi kebahagiaan* dengan sesama 💝
+
+━━━━━━━━━━━━━━━━━━━
+🌟 *Kenapa Donasi Penting?*
+
+• Setiap rupiah kamu berarti
+• Membantu mereka yang membutuhkan
+• Berbagi rezeki = Barakah berlimpah
+• Kebaikan kecil, dampak besar!
+
+━━━━━━━━━━━━━━━━━━━
+
+💡 *Cara Donasi Mudah:*
+1️⃣ Pilih nominal donasi
+2️⃣ Klik tombol "💳 Bayar"
+3️⃣ Scan QRIS yang muncul
+4️⃣ Selesai! ✨
+
+━━━━━━━━━━━━━━━━━━━
+
+🎯 *Mulai Berbagi Sekarang!*
+Pilih nominal di bawah atau masukkan jumlah custom sesuai kemampuanmu 👇
+`;
+
+  const keyboard = createMainDonationReplyKeyboard(sessions[userId]);
+
+  try {
+    await bot.sendMessage(chatId, welcomeMessage, {
+      reply_markup: keyboard,
+      parse_mode: 'Markdown'
+    });
+  } catch (error) {
+    console.error('Error sending start message:', error);
+    // Fallback without markdown if formatting fails
+    await bot.sendMessage(chatId,
+      `Selamat datang ${firstName}! Mari berbagi kebahagiaan dengan donasi. Pilih nominal di bawah ini:`,
+      { reply_markup: keyboard }
+    );
+  }
+}
+
 // Handle /start
 bot.onText(/\/start/, (msg) => {
   handleStart(bot, msg, sessions);
@@ -79,8 +140,36 @@ bot.on('callback_query', async (query) => {
       const statusData = await checkQrisStatus(orderId, orders[orderId]?.amount);
       if (statusData.status === 'completed') {
         orders[orderId].status = 'verified';
-        await bot.sendMessage(orders[orderId].userId, '✅ Pembayaran berhasil diverifikasi!');
-        await bot.sendMessage(config.OWNER_ID, `📢 Donasi Masuk!\n👤 ${orders[orderId].username}\n💰 Rp${orders[orderId].amount.toLocaleString()}\n✅ BERHASIL`);
+
+        // Enhanced success message to user
+        const successMessage = `
+✅ *PEMBAYARAN BERHASIL!*
+
+Terima kasih atas donasimu! 🎉
+
+💰 *Nominal:* Rp${orders[orderId].amount.toLocaleString()}
+📅 *Tanggal:* ${new Date().toLocaleString('id-ID')}
+
+━━━━━━━━━━━━━━━━━━━
+
+💝 Setiap kebaikan yang kamu berikan akan kembali dengan cara yang lebih indah. Barakallah!
+
+🌟 Mau donasi lagi? Ketik /start
+`;
+
+        await bot.sendMessage(orders[orderId].userId, successMessage, {
+          parse_mode: 'Markdown'
+        });
+
+        // Enhanced notification to owner
+        await bot.sendMessage(config.OWNER_ID,
+          `🎊 *DONASI BARU MASUK!*\n\n` +
+          `👤 *Donatur:* ${orders[orderId].username}\n` +
+          `💰 *Nominal:* Rp${orders[orderId].amount.toLocaleString()}\n` +
+          `📅 *Waktu:* ${new Date().toLocaleString('id-ID')}\n` +
+          `✅ *Status:* BERHASIL`,
+          { parse_mode: 'Markdown' }
+        );
       }
       await bot.answerCallbackQuery(query.id, { text: `Status: ${statusData.status?.toUpperCase() || 'unknown'}` });
     } catch (error) {
@@ -122,7 +211,13 @@ bot.on('message', async (msg) => {
   } else if (text === '💳 Bayar') {
     // Handle payment initiation
     if (!sessions[userId].selectedAmount) {
-      const menuText = '🎉 **Donasi — Bantu Sesama**\n\nMari bantu sesama dengan donasi Anda!\n\n❌ **Pilih nominal donasi terlebih dahulu!**\n\nGunakan tombol di bawah untuk memilih nominal.';
+      const menuText = `
+⚠️ *Belum Pilih Nominal*
+
+Kamu belum memilih nominal donasi nih!
+
+Silakan pilih nominal terlebih dahulu menggunakan tombol di bawah 👇
+`;
       const keyboard = createMainDonationReplyKeyboard(sessions[userId]);
 
       await bot.sendMessage(chatId, menuText, {
@@ -150,8 +245,33 @@ bot.on('message', async (msg) => {
       // Generate QR code using the QRCode library directly
       const qrBuffer = await QRCode.toBuffer(qrisResponse.payment_number, { type: 'png', width: 300 });
 
+      // Enhanced payment message
+      const paymentMessage = `
+╔═══════════════════════╗
+   💳 *LANJUTKAN PEMBAYARAN*
+╚═══════════════════════╝
+
+💰 *Total Pembayaran:*
+   Rp${qrisResponse.total_payment.toLocaleString()}
+
+⏰ *Batas Waktu:*
+   ${new Date(qrisResponse.expired_at).toLocaleString('id-ID')}
+
+━━━━━━━━━━━━━━━━━━━
+
+📱 *Cara Bayar:*
+1. Buka aplikasi mobile banking/e-wallet
+2. Pilih menu QRIS/Scan
+3. Scan QR code di atas
+4. Konfirmasi pembayaran
+
+━━━━━━━━━━━━━━━━━━━
+
+✅ Klik tombol "Cek Status" setelah bayar untuk verifikasi otomatis!
+`;
+
       await bot.sendPhoto(chatId, qrBuffer, {
-        caption: `💰 **Total Pembayaran:** Rp${qrisResponse.total_payment.toLocaleString()}\n⏰ **Batas Waktu:** ${new Date(qrisResponse.expired_at).toLocaleString('id-ID')}\n\n📱 Scan QRIS di atas untuk menyelesaikan pembayaran.`,
+        caption: paymentMessage,
         parse_mode: 'Markdown',
         reply_markup: createQrisStatusInlineKeyboard(orderId)
       });
@@ -163,9 +283,15 @@ bot.on('message', async (msg) => {
     } catch (error) {
       console.error('QRIS creation error:', error);
       const keyboard = createMainDonationReplyKeyboard(sessions[userId]);
-      await bot.sendMessage(chatId, '❌ Maaf, terjadi kesalahan dalam membuat transaksi. Silakan coba lagi.', {
-        reply_markup: keyboard
-      });
+      await bot.sendMessage(chatId,
+        '❌ *Oops! Terjadi Kesalahan*\n\n' +
+        'Maaf, sistem sedang mengalami gangguan. Silakan coba lagi dalam beberapa saat.\n\n' +
+        '💡 Jika masalah berlanjut, hubungi admin ya!',
+        {
+          reply_markup: keyboard,
+          parse_mode: 'Markdown'
+        }
+      );
     }
   }
 });
@@ -173,7 +299,8 @@ bot.on('message', async (msg) => {
 // Clean expired sessions periodically
 setInterval(cleanExpiredSessions, 5 * 60 * 1000); // Every 5 minutes
 
-console.log('Bot is running...');
+console.log('✅ Bot is running...');
+console.log('🎯 Ready to receive donations!');
 
 // Export bot instance for potential webhook usage
 module.exports = { bot, orders, sessions };

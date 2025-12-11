@@ -1,0 +1,26 @@
+CONTOH LENGKAP FILE .ENV:
+
+# Bot Configuration
+BOT_TOKEN=7916675772:AAHktTJPnp8vtYurp4JGJDykC5EXSfHOTUY
+ADMIN_ID=7325378401
+OWNER_ID=7325378401
+
+# Pakasir Configuration
+PAKASIR_PROJECT=bersama-kami
+PAKASIR_API_KEY=jq8ObEBY15V6lwTt0zVDHAJyrqEwWe49
+
+# Supabase Configuration
+SUPABASE_URL=https://qpdzoakrbzsmqqysrkaa.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwZHpvYWtyYnpzbXFxeXNya2FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMDM3NzksImV4cCI6MjA4MDg3OTc3OX0.EoqZyIVJUrUz1kA70Bv-MAv9i8QhNcPoKNl_6LFKqVA
+SUPABASE_SERVICE_ROLE=sb_publishable_xoiVHHkqzFUPBkc2_ITWnA_CP-E_4YH
+SUPABASE_KEY=sb_secret_yC1qLMiOK8fVQLxA-biBDA_sv4b5vid
+
+# Server Configuration
+BASE_URL=donasi-berkah-production.up.railway.app
+
+CATATAN:
+- Ganti semua nilai yang diawali dengan "isi_dengan_" dengan data aslimu
+- Token bot diambil dari @BotFather di Telegram
+- Supabase keys diambil dari dashboard Supabase kamu seperti yang sudah dijelaskan sebelumnya
+- Base_URL adalah alamat Railway kamu
+- Kalau kamu running lokal, BASE_URL bisa diisi http://localhost:3000
