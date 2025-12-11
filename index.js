@@ -12,7 +12,7 @@ const { handlePaymentInitiation } = require('./src/bot/handlers/paymentHandler')
 const { createMainDonationReplyKeyboard } = require('./src/bot/keyboards/replyKeyboard');
 const { createQrisStatusInlineKeyboard } = require('./src/bot/keyboards/replyKeyboard');
 const { createQrisTransaction, checkQrisStatus } = require('./src/services/pakasirService');
-const { saveOrder, updateOrderStatus, getTotalDonations, getOrderById } = require('./src/services/orderService');
+const { saveOrder, updateOrder, getTotalDonations, getOrderById } = require('./src/services/orderService');
 const { validateDonationAmount } = require('./src/utils/validateAmount');
 const { generateOrderId } = require('./src/utils/random');
 const logger = require('./src/utils/logger');
@@ -152,20 +152,25 @@ bot.on('callback_query', async (query) => {
       
       if (statusData.status === 'completed') {
         // Update status in DB
-        await updateOrderStatus(orderId, 'completed', new Date().toISOString());
+        await updateOrder(orderId, { 
+          status: 'completed',
+          completed_at: new Date().toISOString() 
+        });
 
-        // Enhanced success message to user
+        // New success message
         const successMessage = `
 ✅ *PEMBAYARAN BERHASIL!*
 
-Terima kasih atas donasimu! 🎉
+Terima kasih banyak atas donasi Anda! 🎉
+
+Setiap dukungan yang Anda berikan sangat berarti untuk keberlangsungan dan pengembangan server ini agar dapat terus melayani.
 
 💰 *Nominal:* Rp${order.amount.toLocaleString()}
-📅 *Tanggal:* ${new Date().toLocaleString('id-ID')}
+📅 *Tanggal:* ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
 
 ━━━━━━━━━━━━━━━━━━━
 
-💝 Setiap kebaikan yang kamu berikan akan kembali dengan cara yang lebih indah. Barakallah!
+Semoga kebaikan Anda dibalas dengan berlipat ganda. Barakallah! 🙏
 
 🌟 Mau donasi lagi? Ketik /start
 `;
@@ -174,12 +179,21 @@ Terima kasih atas donasimu! 🎉
           parse_mode: 'Markdown'
         });
 
+        // Delete the original QR code message
+        if (order.qr_message_id) {
+          try {
+            await bot.deleteMessage(order.user_id, order.qr_message_id);
+          } catch (err) {
+            logger.error('Failed to delete QR message, it might have been deleted already:', err);
+          }
+        }
+
         // Enhanced notification to owner
         await bot.sendMessage(config.OWNER_ID,
           `🎊 *DONASI BARU MASUK!*\n\n` +
           `👤 *Donatur:* ${order.username}\n` +
           `💰 *Nominal:* Rp${order.amount.toLocaleString()}\n` +
-          `📅 *Waktu:* ${new Date().toLocaleString('id-ID')}\n` +
+          `📅 *Waktu:* ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}\n` +
           `✅ *Status:* BERHASIL`,
           { parse_mode: 'Markdown' }
         );
@@ -291,6 +305,9 @@ Silakan pilih nominal terlebih dahulu menggunakan tombol di bawah 👇
         parse_mode: 'Markdown',
         reply_markup: createQrisStatusInlineKeyboard(orderId)
       });
+
+      // Save the message_id to the order for later deletion
+      await updateOrder(orderId, { qr_message_id: sentMessage.message_id });
 
       // Schedule QR code deletion on expiration
       const delay = expirationDate.getTime() - Date.now();

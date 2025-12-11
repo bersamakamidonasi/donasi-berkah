@@ -25,18 +25,12 @@ async function saveOrder(orderData) {
 }
 
 /**
- * Update order status and completion time
+ * Update an order in the database
  * @param {string} orderId - Order ID to update
- * @param {string} status - New status (pending/completed/expired)
- * @param {string} completedAt - Completion timestamp (optional)
+ * @param {Object} updateData - An object containing the fields to update
  * @returns {Promise<Object>} Updated order data
  */
-async function updateOrderStatus(orderId, status, completedAt = null) {
-  const updateData = { status };
-  if (completedAt) {
-    updateData.completed_at = completedAt;
-  }
-
+async function updateOrder(orderId, updateData) {
   const { data, error } = await supabase
     .from('orders')
     .update(updateData)
@@ -45,7 +39,7 @@ async function updateOrderStatus(orderId, status, completedAt = null) {
 
   if (error) {
     console.error('Supabase Update Error:', error);
-    throw new Error('Failed to update order status');
+    throw new Error('Failed to update order');
   }
 
   return data[0];
@@ -139,7 +133,7 @@ async function getTotalDonations() {
 
 module.exports = {
   saveOrder,
-  updateOrderStatus,
+  updateOrder,
   getOrderById,
   getOrdersByUserId,
   getOrdersByStatus,
