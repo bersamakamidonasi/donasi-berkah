@@ -19,7 +19,7 @@ const config = {
   PAKASIR_API_KEY: process.env.PAKASIR_API_KEY,
 
   // Owner Configuration
-  OWNER_ID: process.env.OWNER_ID || '7325378401',
+  OWNER_ID: process.env.OWNER_ID || '1303861906',
 
   // Server Configuration
   PORT: process.env.PORT || 3000,
