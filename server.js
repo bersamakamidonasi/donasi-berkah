@@ -37,9 +37,15 @@ app.post(`/bot${config.BOT_TOKEN}`, (req, res) => {
 });
 
 // Mulai server
-app.listen(port, () => {
-  console.log(`🌐 Server running on port ${port}`);
-  console.log(`🚀 Bot webhook endpoint: /bot${config.BOT_TOKEN}`);
+app.listen(port, async () => {
+  try {
+    const webhookUrl = `${config.BASE_URL}/bot${config.BOT_TOKEN}`;
+    await bot.setWebHook(webhookUrl);
+    console.log(`🌐 Server running on port ${port}`);
+    console.log(`🚀 Webhook successfully set to: ${webhookUrl}`);
+  } catch (error) {
+    console.error('Failed to set webhook:', error);
+  }
 });
 
 module.exports = app;

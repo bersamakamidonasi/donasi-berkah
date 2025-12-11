@@ -38,8 +38,8 @@ try {
 
 const token = config.BOT_TOKEN;
 
-// Create bot instance with polling
-const bot = new TelegramBot(token, { polling: true });
+// Create bot instance
+const bot = new TelegramBot(token);
 
 // Log successful bot initialization
 console.log('🤖 Bot initialized successfully');
