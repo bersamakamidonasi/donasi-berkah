@@ -12,7 +12,7 @@ const { handlePaymentInitiation } = require('./src/bot/handlers/paymentHandler')
 const { createMainDonationReplyKeyboard } = require('./src/bot/keyboards/replyKeyboard');
 const { createQrisStatusInlineKeyboard } = require('./src/bot/keyboards/replyKeyboard');
 const { createQrisTransaction, checkQrisStatus, simulatePayment } = require('./src/services/pakasirService');
-const { saveOrder, updateOrder, getTotalDonations, getOrderById } = require('./src/services/orderService');
+const { saveOrder, updateOrder, getMonthlyDonations, getOrderById } = require('./src/services/orderService');
 const { validateDonationAmount } = require('./src/utils/validateAmount');
 const { generateOrderId } = require('./src/utils/random');
 const logger = require('./src/utils/logger');
@@ -73,8 +73,16 @@ async function handleStart(bot, msg, sessions) {
     lastActivity: Date.now()
   };
 
-  // Fetch total donations
-  const totalDonations = await getTotalDonations();
+  // Fetch monthly donations and calculate progress
+  const monthlyGoal = 300000;
+  const monthlyDonations = await getMonthlyDonations();
+  const percentage = Math.min(Math.floor((monthlyDonations / monthlyGoal) * 100), 100);
+  
+  // Create a simple progress bar
+  const progressBarLength = 12;
+  const filledLength = Math.round(progressBarLength * (percentage / 100));
+  const emptyLength = progressBarLength - filledLength;
+  const progressBar = `[${'█'.repeat(filledLength)}${'░'.repeat(emptyLength)}] ${percentage}%`;
 
   // Enhanced welcome message with better formatting and emotional appeal
   const welcomeMessage = `
@@ -86,8 +94,9 @@ Hai *${firstName}*! 👋
 
 Terima kasih sudah membuka hatimu untuk *berbagi kebahagiaan* dengan sesama 💝
 
-*Total donasi terkumpul saat ini:*
-💰 *Rp${totalDonations.toLocaleString()}*
+*Donasi Terkumpul Bulan Ini:*
+${progressBar}
+*Rp${monthlyDonations.toLocaleString()}* / Rp${monthlyGoal.toLocaleString()}
 
 ━━━━━━━━━━━━━━━━━━━
 🌟 *Kenapa Donasi Penting?*
@@ -122,7 +131,7 @@ Pilih nominal di bawah atau masukkan jumlah custom sesuai kemampuanmu 👇
     console.error('Error sending start message:', error);
     // Fallback without markdown if formatting fails
     await bot.sendMessage(chatId,
-      `Selamat datang ${firstName}! Mari berbagi kebahagiaan dengan donasi. Total terkumpul: Rp${totalDonations.toLocaleString()}. Pilih nominal di bawah ini:`,
+      `Selamat datang ${firstName}! Mari berbagi kebahagiaan. Donasi bulan ini: Rp${monthlyDonations.toLocaleString()} / Rp${monthlyGoal.toLocaleString()}. Pilih nominal di bawah ini:`,
       { reply_markup: keyboard }
     );
   }

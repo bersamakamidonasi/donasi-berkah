@@ -114,18 +114,24 @@ async function getOrdersByStatus(status, limit = 50) {
 }
 
 /**
- * Get total amount of completed donations
- * @returns {Promise<number>} Total donation amount
+ * Get total amount of completed donations for the current month.
+ * @returns {Promise<number>} Total donation amount for the current month.
  */
-async function getTotalDonations() {
+async function getMonthlyDonations() {
+  const now = new Date();
+  const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const firstDayNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
   const { data, error } = await supabase
     .from('orders')
     .select('amount')
-    .eq('status', 'completed');
+    .eq('status', 'completed')
+    .gte('completed_at', firstDayCurrentMonth.toISOString())
+    .lt('completed_at', firstDayNextMonth.toISOString());
 
   if (error) {
     console.error('Supabase Aggregate Error:', error);
-    throw new Error('Failed to calculate total donations');
+    throw new Error('Failed to calculate monthly donations');
   }
 
   return data.reduce((total, order) => total + order.amount, 0);
@@ -137,5 +143,5 @@ module.exports = {
   getOrderById,
   getOrdersByUserId,
   getOrdersByStatus,
-  getTotalDonations
+  getMonthlyDonations
 };
