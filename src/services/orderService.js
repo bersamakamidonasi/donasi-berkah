@@ -119,10 +119,29 @@ async function getOrdersByStatus(status, limit = 50) {
   return data;
 }
 
+/**
+ * Get total amount of completed donations
+ * @returns {Promise<number>} Total donation amount
+ */
+async function getTotalDonations() {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('amount')
+    .eq('status', 'completed');
+
+  if (error) {
+    console.error('Supabase Aggregate Error:', error);
+    throw new Error('Failed to calculate total donations');
+  }
+
+  return data.reduce((total, order) => total + order.amount, 0);
+}
+
 module.exports = {
   saveOrder,
   updateOrderStatus,
   getOrderById,
   getOrdersByUserId,
-  getOrdersByStatus
+  getOrdersByStatus,
+  getTotalDonations
 };

@@ -11,8 +11,7 @@ const { handleCustomAmountRequest, handleCustomAmountInput } = require('./src/bo
 const { handlePaymentInitiation } = require('./src/bot/handlers/paymentHandler');
 const { createMainDonationReplyKeyboard } = require('./src/bot/keyboards/replyKeyboard');
 const { createQrisStatusInlineKeyboard } = require('./src/bot/keyboards/replyKeyboard');
-const { createQrisTransaction, checkQrisStatus } = require('./src/services/pakasirService');
-const { saveOrder, updateOrderStatus } = require('./src/services/orderService');
+const { saveOrder, updateOrderStatus, getTotalDonations, getOrderById } = require('./src/services/orderService');
 const { validateDonationAmount } = require('./src/utils/validateAmount');
 const { generateOrderId } = require('./src/utils/random');
 const logger = require('./src/utils/logger');
@@ -44,8 +43,7 @@ const bot = new TelegramBot(token);
 // Log successful bot initialization
 console.log('🤖 Bot initialized successfully');
 
-// In-memory storage for orders and sessions
-let orders = {};
+// In-memory storage for user sessions
 let sessions = {};
 
 // Session timeout: 10 minutes
@@ -74,6 +72,9 @@ async function handleStart(bot, msg, sessions) {
     lastActivity: Date.now()
   };
 
+  // Fetch total donations
+  const totalDonations = await getTotalDonations();
+
   // Enhanced welcome message with better formatting and emotional appeal
   const welcomeMessage = `
 ╔═══════════════════════╗
@@ -83,6 +84,9 @@ async function handleStart(bot, msg, sessions) {
 Hai *${firstName}*! 👋
 
 Terima kasih sudah membuka hatimu untuk *berbagi kebahagiaan* dengan sesama 💝
+
+*Total donasi terkumpul saat ini:*
+💰 *Rp${totalDonations.toLocaleString()}*
 
 ━━━━━━━━━━━━━━━━━━━
 🌟 *Kenapa Donasi Penting?*
@@ -117,7 +121,7 @@ Pilih nominal di bawah atau masukkan jumlah custom sesuai kemampuanmu 👇
     console.error('Error sending start message:', error);
     // Fallback without markdown if formatting fails
     await bot.sendMessage(chatId,
-      `Selamat datang ${firstName}! Mari berbagi kebahagiaan dengan donasi. Pilih nominal di bawah ini:`,
+      `Selamat datang ${firstName}! Mari berbagi kebahagiaan dengan donasi. Total terkumpul: Rp${totalDonations.toLocaleString()}. Pilih nominal di bawah ini:`,
       { reply_markup: keyboard }
     );
   }
@@ -134,11 +138,20 @@ bot.on('callback_query', async (query) => {
 
   if (data.startsWith('check:')) {
     const orderId = data.split(':')[1];
-    // Handle status check
+    
     try {
-      const statusData = await checkQrisStatus(orderId, orders[orderId]?.amount);
+      // Get order from DB to check amount
+      const order = await getOrderById(orderId);
+      if (!order) {
+        await bot.answerCallbackQuery(query.id, { text: 'Order tidak ditemukan.' });
+        return;
+      }
+
+      const statusData = await checkQrisStatus(orderId, order.amount);
+      
       if (statusData.status === 'completed') {
-        orders[orderId].status = 'verified';
+        // Update status in DB
+        await updateOrderStatus(orderId, 'completed', new Date().toISOString());
 
         // Enhanced success message to user
         const successMessage = `
@@ -146,7 +159,7 @@ bot.on('callback_query', async (query) => {
 
 Terima kasih atas donasimu! 🎉
 
-💰 *Nominal:* Rp${orders[orderId].amount.toLocaleString()}
+💰 *Nominal:* Rp${order.amount.toLocaleString()}
 📅 *Tanggal:* ${new Date().toLocaleString('id-ID')}
 
 ━━━━━━━━━━━━━━━━━━━
@@ -156,15 +169,15 @@ Terima kasih atas donasimu! 🎉
 🌟 Mau donasi lagi? Ketik /start
 `;
 
-        await bot.sendMessage(orders[orderId].userId, successMessage, {
+        await bot.sendMessage(order.user_id, successMessage, {
           parse_mode: 'Markdown'
         });
 
         // Enhanced notification to owner
         await bot.sendMessage(config.OWNER_ID,
           `🎊 *DONASI BARU MASUK!*\n\n` +
-          `👤 *Donatur:* ${orders[orderId].username}\n` +
-          `💰 *Nominal:* Rp${orders[orderId].amount.toLocaleString()}\n` +
+          `👤 *Donatur:* ${order.username}\n` +
+          `💰 *Nominal:* Rp${order.amount.toLocaleString()}\n` +
           `📅 *Waktu:* ${new Date().toLocaleString('id-ID')}\n` +
           `✅ *Status:* BERHASIL`,
           { parse_mode: 'Markdown' }
@@ -231,15 +244,17 @@ Silakan pilih nominal terlebih dahulu menggunakan tombol di bawah 👇
     try {
       const qrisResponse = await createQrisTransaction(orderId, sessions[userId].selectedAmount);
 
-      orders[orderId] = {
-        userId,
+      // Save order to database
+      await saveOrder({
+        order_id: orderId,
+        user_id: userId,
         username: msg.from.username || msg.from.first_name,
         amount: sessions[userId].selectedAmount,
-        method: 'qris',
+        payment_method: 'qris',
         status: 'pending',
-        qrisData: qrisResponse,
-        createdAt: new Date()
-      };
+        qr_string: qrisResponse.payment_number,
+        expired_at: qrisResponse.expired_at
+      });
 
       // Generate QR code using the QRCode library directly
       const qrBuffer = await QRCode.toBuffer(qrisResponse.payment_number, { type: 'png', width: 300 });
